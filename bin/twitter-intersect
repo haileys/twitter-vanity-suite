@@ -1,0 +1,29 @@
+#!/usr/bin/env ruby
+require_relative "../lib-internal/common"
+
+def usage
+  abort "Usage: twitter-intersect (<username>.following|<username>.followers)..."
+end
+
+usage if ARGV.empty?
+
+def all_ids(method, handle, cursor = -1)
+  return [] if cursor == 0
+  attrs = $client.send(method, handle, count: 5000, cursor: cursor).attrs
+  attrs[:ids] + all_ids(method, handle, attrs[:next_cursor])
+end
+
+ids = ARGV.map { |arg| arg.split(".") }.map { |handle, command|
+  case command
+  when "following"
+    all_ids(:friend_ids, handle)
+  when "followers"
+    all_ids(:follower_ids, handle)
+  else
+    puts "Unknown command: #{command}"
+    puts
+    usage
+  end
+}
+
+puts $client.users(ids.reduce(:&)).map(&:screen_name)
