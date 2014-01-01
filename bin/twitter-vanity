@@ -3,18 +3,6 @@ require_relative "../lib-internal/common"
 
 abort "Usage: twitter-vanity username" if ARGV.empty?
 
-def get_ids(ids)
-  $client.users(ids)
-rescue Twitter::Error::NotFound => e
-  $stderr.puts "weird"
-  if ids.size == 1
-    []
-  else
-    a, b = ids[0...ids.length / 2], ids[ids.length / 2..-1]
-    get_ids(a) + get_ids(b)
-  end
-end
-
 def all_followers(username, cursor = -1)
   return [] if cursor.zero?
   attrs = $client.follower_ids(username, count: 5000, cursor: cursor).attrs
@@ -22,7 +10,7 @@ def all_followers(username, cursor = -1)
 end
 
 def show_ids_sorted_by_followers(ids)
-  users = get_ids(ids)
+  users = $client.users(ids)
 
   users.sort_by { |user|
     -user.followers_count
