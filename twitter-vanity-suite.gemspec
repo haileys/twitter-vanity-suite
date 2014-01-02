@@ -1,4 +1,6 @@
 executables = %w(
+  twitter-delete
+  twitter-hist-ids
   twitter-intersect
   twitter-vanity
 )
