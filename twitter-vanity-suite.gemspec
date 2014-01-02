@@ -14,7 +14,7 @@ Gem::Specification.new do |s|
   s.author = "Charlie Somerville"
   s.email = "charlie@charliesomerville.com"
   s.files = executables.map { |exe| "bin/#{exe}" } + ["lib-internal/common.rb"]
-  s.license = "BSD"
+  s.license = "AGPL"
   s.executables = executables
 
   s.add_dependency "twitter", "~> 5.4"
