@@ -1,0 +1,13 @@
+#!/usr/bin/ruby
+require "json"
+
+ARGV.each do |file|
+  begin
+    f = File.open(file)
+  rescue
+    $stderr.puts "no such file: #{file}"
+    next
+  end
+  f.gets
+  puts JSON.parse(f.read).map { |tw| tw["id_str"] }
+end
