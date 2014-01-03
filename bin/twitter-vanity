@@ -4,7 +4,7 @@ require_relative "../lib-internal/common"
 abort "Usage: twitter-vanity username" if ARGV.empty?
 
 def show_ids_sorted_by_followers(ids)
-  users = $client.users(ids)
+  users = client.users(ids)
 
   users.sort_by { |user|
     -user.followers_count
@@ -14,5 +14,5 @@ def show_ids_sorted_by_followers(ids)
 end
 
 username = ARGV.first
-follower_ids = $client.follower_ids(username).to_a
+follower_ids = client.follower_ids(username).to_a
 show_ids_sorted_by_followers(follower_ids)

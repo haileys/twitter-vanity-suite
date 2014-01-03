@@ -7,7 +7,7 @@ ids = $stdin.readlines.map(&:chomp).reverse
   Thread.start do
     while id = ids.pop
       begin
-        $client.destroy_status(id)
+        client.destroy_status(id)
       rescue Twitter::Error::NotFound
       rescue
         $stderr.puts "\rERROR: #{id}"
