@@ -7,18 +7,12 @@ end
 
 usage if ARGV.empty?
 
-def all_ids(method, handle, cursor = -1)
-  return [] if cursor == 0
-  attrs = $client.send(method, handle, count: 5000, cursor: cursor).attrs
-  attrs[:ids] + all_ids(method, handle, attrs[:next_cursor])
-end
-
 ids = ARGV.map { |arg| arg.split(".") }.map { |handle, command|
   case command
   when "following"
-    all_ids(:friend_ids, handle)
+    $client.friend_ids(handle).to_a
   when "followers"
-    all_ids(:follower_ids, handle)
+    $client.follower_ids(handle).to_a
   else
     puts "Unknown command: #{command}"
     puts
