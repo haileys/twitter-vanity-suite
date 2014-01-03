@@ -7,12 +7,12 @@ end
 
 usage if ARGV.empty?
 
-ids = ARGV.map { |arg| arg.split(".") }.map { |handle, command|
+threads = ARGV.map { |arg| arg.split(".") }.map { |handle, command|
   case command
   when "following"
-    $client.friend_ids(handle).to_a
+    Thread.new { $client.friend_ids(handle).to_a }
   when "followers"
-    $client.follower_ids(handle).to_a
+    Thread.new { $client.follower_ids(handle).to_a }
   else
     puts "Unknown command: #{command}"
     puts
@@ -20,4 +20,4 @@ ids = ARGV.map { |arg| arg.split(".") }.map { |handle, command|
   end
 }
 
-puts $client.users(ids.reduce(:&)).map(&:screen_name)
+puts $client.users(threads.map(&:value).reduce(:&)).map(&:screen_name)
