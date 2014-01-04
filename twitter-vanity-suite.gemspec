@@ -7,7 +7,7 @@ executables = %w(
 
 Gem::Specification.new do |s|
   s.name = "twitter-vanity-suite"
-  s.version = "0.0.2"
+  s.version = "0.1.0"
   s.summary = "my personal set of command line twitter tools"
   s.description = s.summary + " " # shut up rubygems
   s.homepage = "https://github.com/haileysome/twitter-vanity-tools"
