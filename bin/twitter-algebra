@@ -338,6 +338,6 @@ if result_set.values.empty?
   end
 else
   $client.users(result_set.values).each do |user|
-    puts "#{complement && "NOT "}#{user.screen_name}"
+    puts "#{complement ? "NOT " : ""}#{user.screen_name}"
   end
 end
