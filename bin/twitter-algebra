@@ -1,12 +1,14 @@
 #!/usr/bin/env ruby
 # Usage: twitter-algebra <expression>
 #
-# There are two types of sets twitter-algebra knows how to work with at the
+# There are three types of sets twitter-algebra knows how to work with at the
 # moment:
 #
 #   A.following - returns the set of users @A follows on twitter
 #
 #   A.followers - returns the set of users that follow @A on twitter
+#
+#   {A, B, C}   - returns the set of users A, B, and C
 #
 # You may use the following operators in your expression:
 #
@@ -55,6 +57,9 @@ class Lexer
     [:COMPLEMENT,   /~/],
     [:OPEN_PAREN,   /\(/],
     [:CLOSE_PAREN,  /\)/],
+    [:OPEN_BRACE,   /\{/],
+    [:CLOSE_BRACE,  /\}/],
+    [:COMMA,        /,/],
     [:WHITESPACE,   /\s+/],
   ]
 
@@ -143,13 +148,7 @@ module Algebra
 end
 
 module AST
-  class HandleSet
-    attr_reader :handle
-
-    def initialize(handle)
-      @handle = handle.downcase
-    end
-
+  module LoadableSet
     def load_data(threads)
       threads[key] ||= Thread.start {
         fetch_data
@@ -161,7 +160,15 @@ module AST
     end
   end
 
-  class Followers < HandleSet
+  class Followers
+    include LoadableSet
+
+    attr_reader :handle
+
+    def initialize(handle)
+      @handle = handle
+    end
+
     def fetch_data
       $client.follower_ids(handle).to_a
     end
@@ -171,13 +178,39 @@ module AST
     end
   end
 
-  class Following < HandleSet
+  class Following
+    include LoadableSet
+
+    attr_reader :handle
+
+    def initialize(handle)
+      @handle = handle
+    end
+
     def fetch_data
       $client.friend_ids(handle).to_a
     end
 
     def key
       "#{handle}.following"
+    end
+  end
+
+  class HandleSet
+    include LoadableSet
+
+    attr_reader :handles
+
+    def initialize(handles)
+      @handles = handles.map(&:downcase)
+    end
+
+    def key
+      "{#{handles.sort.join(",")}}"
+    end
+
+    def fetch_data
+      $client.users(handles).map(&:id)
     end
   end
 
@@ -278,6 +311,8 @@ private
       complement_expression
     when :OPEN_PAREN
       parenthesized_expression
+    when :OPEN_BRACE
+      handle_set_expression
     when :BAREWORD
       handle_expression
     else
@@ -301,6 +336,18 @@ private
     "followers" => AST::Followers,
     "following" => AST::Following,
   }
+
+  def handle_set_expression
+    expect_token(:OPEN_BRACE)
+    handles = []
+    while peek_token.type != :CLOSE_BRACE
+      handles << expect_token(:BAREWORD).value
+      break if peek_token.type == :CLOSE_BRACE
+      expect_token(:COMMA)
+    end
+    expect_token(:CLOSE_BRACE)
+    AST::HandleSet.new(handles)
+  end
 
   def handle_expression
     handle = expect_token(:BAREWORD).value
