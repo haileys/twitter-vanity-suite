@@ -1,6 +1,47 @@
 #!/usr/bin/env ruby
 require_relative "../lib-internal/common"
 
+if ARGV.empty?
+  abort <<-USAGE
+Usage: twitter-algebra <expression>
+
+There are two types of sets twitter-algebra knows how to work with at the
+moment:
+
+  A.following - returns the set of users @A follows on twitter
+
+  A.followers - returns the set of users that follow @A on twitter
+
+You may use the following operators in your expression:
+
+  A & B - returns the intersection of sets A and B, ie. twitter users present
+          in both sets
+
+  A | b - returns the union of sets A and B, ie. twitter users present in
+          either (or both) sets
+
+  ~A    - returns the complement of set A, ie. twitter users *not* present in
+          the set
+
+You can combine the sets and operators described above in any way you like, for
+example:
+
+  haileysome.following & ~dhh.followers
+
+    - lists users @haileysome follows who do not follow @dhh
+
+  haileysome.followers & (metrotrains.followers | yarratrams.followers)
+
+    - lists users that follow @haileysome as well as @metrotrains or
+      @yarratrams (or both!)
+
+  haileysome.following | ~haileysome.following
+
+    - literally every user on twitter
+
+  USAGE
+end
+
 class Token
   attr_reader :type, :value
 
@@ -278,46 +319,7 @@ private
   end
 end
 
-unless expr = ARGV.first
-  abort <<-USAGE
-Usage: twitter-algebra <expression>
-
-There are two types of sets twitter-algebra knows how to work with at the
-moment:
-
-  A.following - returns the set of users @A follows on twitter
-
-  A.followers - returns the set of users that follow @A on twitter
-
-You may use the following operators in your expression:
-
-  A & B - returns the intersection of sets A and B, ie. twitter users present
-          in both sets
-
-  A | b - returns the union of sets A and B, ie. twitter users present in
-          either (or both) sets
-
-  ~A    - returns the complement of set A, ie. twitter users *not* present in
-          the set
-
-You can combine the sets and operators described above in any way you like, for
-example:
-
-  haileysome.following & ~dhh.followers
-
-    - lists users @haileysome follows who do not follow @dhh
-
-  haileysome.followers & (metrotrains.followers | yarratrams.followers)
-
-    - lists users that follow @haileysome as well as @metrotrains or
-      @yarratrams (or both!)
-
-  haileysome.following | ~haileysome.following
-
-    - literally every user on twitter
-
-  USAGE
-end
+expr = ARGV.first
 tokens = Lexer.new(expr).lex
 ast = Parser.new(tokens).parse
 
