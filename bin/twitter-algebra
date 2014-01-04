@@ -8,7 +8,7 @@
 #
 #   A.followers - returns the set of users that follow @A on twitter
 #
-#   {A, B, C}   - returns the set of users A, B, and C
+#   {A, B, C}   - returns a set containing the users @A, @B, and @C
 #
 # You may use the following operators in your expression:
 #
