@@ -1,0 +1,346 @@
+#!/usr/bin/env ruby
+require_relative "../lib-internal/common"
+
+class Token
+  attr_reader :type, :value
+
+  def initialize(type, value)
+    @type = type
+    @value = value
+  end
+end
+
+class Lexer
+  TOKENS = [
+    [:BAREWORD,     /[a-z0-9_]+/],
+    [:DOT,          /\./],
+    [:INTERSECTION, /&/],
+    [:UNION,        /\|/],
+    [:COMPLEMENT,   /~/],
+    [:OPEN_PAREN,   /\(/],
+    [:CLOSE_PAREN,  /\)/],
+    [:WHITESPACE,   /\s+/],
+  ]
+
+  def initialize(string)
+    @scanner = StringScanner.new(string)
+    @tokens = []
+  end
+
+  def lex
+    until scanner.eos?
+      tokens << next_token
+    end
+    tokens.reject! { |token| token.type == :WHITESPACE }
+    tokens << Token.new(:END, "")
+  end
+
+private
+  attr_reader :scanner, :tokens
+
+  def next_token
+    TOKENS.each do |type, regexp|
+      if str = scanner.scan(regexp)
+        return Token.new(type, str)
+      end
+    end
+    raise SyntaxError, "Unexpected character: #{scanner.getch.inspect}"
+  end
+end
+
+module Algebra
+  class Set
+    attr_reader :values
+
+    def initialize(values)
+      @values = values.uniq
+    end
+
+    def &(other)
+      if other.is_a?(Complement)
+        Set.new(values - other.values)
+      else
+        Set.new(values & other.values)
+      end
+    end
+
+    def |(other)
+      if other.is_a?(Complement)
+        Complement.new(other.values - values)
+      else
+        Set.new(values | other.values)
+      end
+    end
+
+    def ~
+      Complement.new(values)
+    end
+  end
+
+  class Complement
+    attr_reader :values
+
+    def initialize(values)
+      @values = values.uniq
+    end
+
+    def &(other)
+      if other.is_a?(Complement)
+        Complement.new(values | other.values)
+      else
+        Complement.new(other.values - values)
+      end
+    end
+
+    def |(other)
+      if other.is_a?(Complement)
+        Complement.new(values & other.values)
+      else
+        Complement.new(values - other.values)
+      end
+    end
+
+    def ~
+      Set.new(values)
+    end
+  end
+end
+
+module AST
+  class HandleSet
+    attr_reader :handle
+
+    def initialize(handle)
+      @handle = handle.downcase
+    end
+
+    def load_data(threads)
+      threads[key] ||= Thread.start {
+        fetch_data
+      }
+    end
+
+    def evaluate(data)
+      Algebra::Set.new(data[key])
+    end
+  end
+
+  class Followers < HandleSet
+    def fetch_data
+      $client.follower_ids(handle).to_a
+    end
+
+    def key
+      "#{handle}.followers"
+    end
+  end
+
+  class Following < HandleSet
+    def fetch_data
+      $client.friend_ids(handle).to_a
+    end
+
+    def key
+      "#{handle}.following"
+    end
+  end
+
+  class Binary
+    attr_reader :left, :right
+
+    def initialize(left, right)
+      @left = left
+      @right = right
+    end
+
+    def load_data(threads)
+      left.load_data(threads)
+      right.load_data(threads)
+    end
+  end
+
+  class Intersection < Binary
+    def evaluate(data)
+      left.evaluate(data) & right.evaluate(data)
+    end
+  end
+
+  class Union < Binary
+    def evaluate(data)
+      left.evaluate(data) | right.evaluate(data)
+    end
+  end
+
+  class Complement
+    attr_reader :set
+
+    def initialize(set)
+      @set = set
+    end
+
+    def load_data(threads)
+      set.load_data(threads)
+    end
+
+    def evaluate(data)
+      ~set.evaluate(data)
+    end
+  end
+end
+
+class Parser
+  def initialize(tokens)
+    @tokens = tokens
+  end
+
+  def parse
+    expr = expression
+    expect_token(:END)
+    expr
+  end
+
+private
+  attr_reader :tokens
+
+  def peek_token
+    tokens.first
+  end
+
+  def next_token
+    tokens.shift
+  end
+
+  def expect_token(type)
+    token = next_token
+    if token.type != type
+      raise SyntaxError, "Expected #{type}, saw #{token.value.inspect}"
+    end
+    token
+  end
+
+  def expression
+    binary_expression
+  end
+
+  BINARY_OPERATORS = {
+    :UNION        => AST::Union,
+    :INTERSECTION => AST::Intersection,
+  }
+
+  def binary_expression
+    left = primary_expression
+    while klass = BINARY_OPERATORS[peek_token.type]
+      next_token
+      left = klass.new(left, primary_expression)
+    end
+    left
+  end
+
+  def primary_expression
+    case peek_token.type
+    when :COMPLEMENT
+      complement_expression
+    when :OPEN_PAREN
+      parenthesized_expression
+    when :BAREWORD
+      handle_expression
+    else
+      raise SyntaxError, "Unexpected #{peek_token.value.inspect}"
+    end
+  end
+
+  def complement_expression
+    expect_token(:COMPLEMENT)
+    AST::Complement.new(primary_expression)
+  end
+
+  def parenthesized_expression
+    expect_token(:OPEN_PAREN)
+    expr = expression
+    expect_token(:CLOSE_PAREN)
+    expr
+  end
+
+  COMMANDS = {
+    "followers" => AST::Followers,
+    "following" => AST::Following,
+  }
+
+  def handle_expression
+    handle = expect_token(:BAREWORD).value
+    expect_token(:DOT)
+    command = expect_token(:BAREWORD).value
+    if klass = COMMANDS[command]
+      klass.new(handle)
+    else
+      raise SyntaxError, "Unknown command #{command.inspect}"
+    end
+  end
+end
+
+unless expr = ARGV.first
+  abort <<-USAGE
+Usage: twitter-algebra <expression>
+
+There are two types of sets twitter-algebra knows how to work with at the
+moment:
+
+  A.following - returns the set of users @A follows on twitter
+
+  A.followers - returns the set of users that follow @A on twitter
+
+You may use the following operators in your expression:
+
+  A & B - returns the intersection of sets A and B, ie. twitter users present
+          in both sets
+
+  A | b - returns the union of sets A and B, ie. twitter users present in
+          either (or both) sets
+
+  ~A    - returns the complement of set A, ie. twitter users *not* present in
+          the set
+
+You can combine the sets and operators described above in any way you like, for
+example:
+
+  haileysome.following & ~dhh.followers
+
+    - lists users @haileysome follows who do not follow @dhh
+
+  haileysome.followers & (metrotrains.followers | yarratrams.followers)
+
+    - lists users that follow @haileysome as well as @metrotrains or
+      @yarratrams (or both!)
+
+  haileysome.following | ~haileysome.following
+
+    - literally every user on twitter
+
+  USAGE
+end
+tokens = Lexer.new(expr).lex
+ast = Parser.new(tokens).parse
+
+threads = {}
+data = {}
+ast.load_data(threads)
+threads.each do |data_name, thread|
+  data[data_name] = thread.value
+end
+
+result_set = ast.evaluate(data)
+complement = result_set.is_a?(Algebra::Complement)
+
+if result_set.values.empty?
+  # printing to stderr so we don't mess up scripts that we might be piping
+  # into
+  if complement
+    $stderr.puts "(everybody)"
+  else
+    $stderr.puts "(nobody)"
+  end
+else
+  $client.users(result_set.values).each do |user|
+    puts "#{complement && "NOT "}#{user.screen_name}"
+  end
+end
