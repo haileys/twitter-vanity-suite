@@ -1,11 +1,6 @@
 #!/usr/bin/env ruby
+# Usage: twitter-intersect (<username>.following|<username>.followers)...
 require_relative "../lib-internal/common"
-
-def usage
-  abort "Usage: twitter-intersect (<username>.following|<username>.followers)..."
-end
-
-usage if ARGV.empty?
 
 threads = ARGV.map { |arg| arg.split(".") }.map { |handle, command|
   case command

@@ -1,3 +1,17 @@
+def usage
+  lines = File.readlines(File.expand_path($0)).take_while { |line| line[0] == "#" }
+  lines.shift # get rid of the shebang
+  lines.map! { |line| line[2..-1] }
+  puts lines
+end
+
+def usage!
+  usage
+  exit false
+end
+
+usage! if ARGV.empty?
+
 gem "twitter", "~> 5.4"
 require "twitter"
 require "yaml"

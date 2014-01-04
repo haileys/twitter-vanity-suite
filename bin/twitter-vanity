@@ -1,7 +1,6 @@
 #!/usr/bin/env ruby
+# Usage: twitter-vanity username
 require_relative "../lib-internal/common"
-
-abort "Usage: twitter-vanity username" if ARGV.empty?
 
 def show_ids_sorted_by_followers(ids)
   users = $client.users(ids)
