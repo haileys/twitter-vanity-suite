@@ -1,4 +1,5 @@
 executables = %w(
+  twitter-algebra
   twitter-delete
   twitter-hist-ids
   twitter-intersect
