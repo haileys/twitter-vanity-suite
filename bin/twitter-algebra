@@ -15,7 +15,7 @@
 #   A & B - returns the intersection of sets A and B, ie. twitter users present
 #           in both sets
 #
-#   A | b - returns the union of sets A and B, ie. twitter users present in
+#   A | B - returns the union of sets A and B, ie. twitter users present in
 #           either (or both) sets
 #
 #   ~A    - returns the complement of set A, ie. twitter users *not* present in
