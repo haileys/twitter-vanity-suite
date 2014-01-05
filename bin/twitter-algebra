@@ -8,6 +8,8 @@
 #
 #   A.followers - returns the set of users that follow @A on twitter
 #
+#   A/B         - returns the set of users in the @A/B list
+#
 #   {A, B, C}   - returns a set containing the users @A, @B, and @C
 #
 # You may use the following operators in your expression:
@@ -50,8 +52,9 @@ end
 
 class Lexer
   TOKENS = [
-    [:BAREWORD,     /[a-z0-9_]+/],
+    [:BAREWORD,     /[a-z0-9_-]+/],
     [:DOT,          /\./],
+    [:SLASH,        /\//],
     [:INTERSECTION, /&/],
     [:UNION,        /\|/],
     [:COMPLEMENT,   /~/],
@@ -214,6 +217,25 @@ module AST
     end
   end
 
+  class ListMembers
+    include LoadableSet
+
+    attr_reader :handle, :list_name
+
+    def initialize(handle, list_name)
+      @handle = handle
+      @list_name = list_name
+    end
+
+    def key
+      "#{handle}/#{list_name}"
+    end
+
+    def fetch_data
+      $client.list_members(handle, list_name).map(&:id)
+    end
+  end
+
   class Binary
     attr_reader :left, :right
 
@@ -351,6 +373,16 @@ private
 
   def handle_expression
     handle = expect_token(:BAREWORD).value
+    if peek_token.type == :DOT
+      handle_command_expression(handle)
+    elsif peek_token.type == :SLASH
+      list_expression(handle)
+    else
+      raise SyntaxError, "Unexpected #{peek_token.value.inspect}"
+    end
+  end
+
+  def handle_command_expression(handle)
     expect_token(:DOT)
     command = expect_token(:BAREWORD).value
     if klass = COMMANDS[command]
@@ -358,6 +390,12 @@ private
     else
       raise SyntaxError, "Unknown command #{command.inspect}"
     end
+  end
+
+  def list_expression(handle)
+    expect_token(:SLASH)
+    list_name = expect_token(:BAREWORD).value
+    AST::ListMembers.new(handle, list_name)
   end
 end
 
