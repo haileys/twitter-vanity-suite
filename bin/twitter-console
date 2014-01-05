@@ -1,0 +1,10 @@
+#!/usr/bin/env ruby
+# Usage: twitter-console
+
+# hack so we don't get dumped into usage:
+ARGV << "lol"
+
+require_relative "../lib-internal/common"
+
+require "pry"
+pry
