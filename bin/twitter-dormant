@@ -1,0 +1,31 @@
+#!/usr/bin/env ruby
+# Usage: twitter-dormant [<usernames.txt>]
+#
+# Sorts usernames by time of last tweet.
+#
+# You can use this tool in conjunction with `twitter-algebra` to find accounts
+# you follow that are now dormant:
+#
+#   twitter-algebra your_username.following | twitter-dormant -
+
+require_relative "../lib-internal/common"
+
+class NullTime
+  def <=>(other)
+    -1
+  end
+
+  def strftime(format)
+    "YYYY-MM-DD"
+    "          "
+  end
+end
+
+$client.users(ARGF.readlines.map(&:chomp)).map { |user|
+  time = user.status.nil? ? NullTime.new : user.status.created_at
+  [time, user.screen_name]
+}.sort_by { |time, handle|
+  time
+}.each do |time, handle|
+  puts "#{time.strftime("%Y-%m-%d")}  #{handle}"
+end
