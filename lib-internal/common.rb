@@ -1,5 +1,6 @@
 def usage
-  lines = File.readlines(File.expand_path($0)).take_while { |line| line[0] == "#" }
+  caller_file = caller_locations.map(&:absolute_path).find { |path| path != __FILE__ }
+  lines = File.readlines(caller_file).take_while { |line| line[0] == "#" }
   lines.shift # get rid of the shebang
   lines.map! { |line| line[2..-1] }
   puts lines
