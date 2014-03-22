@@ -1,6 +1,8 @@
 executables = %w(
   twitter-algebra
+  twitter-console
   twitter-delete
+  twitter-dormant
   twitter-hist-ids
   twitter-intersect
   twitter-vanity
