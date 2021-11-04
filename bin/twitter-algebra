@@ -29,16 +29,16 @@
 # You can combine the sets and operators described above in any way you like, for
 # example:
 #
-#   haileysome.following & ~dhh.followers
+#   haileysaccount.following & abcnews.followers
 #
-#     - lists users @haileysome follows who do not follow @dhh
+#     - lists users @haileysaccount follows who also follow @abcnews
 #
-#   haileysome.followers & (metrotrains.followers | yarratrams.followers)
+#   haileysaccount.followers & (metrotrains.followers | yarratrams.followers)
 #
-#     - lists users that follow @haileysome as well as @metrotrains or
+#     - lists users that follow @haileysaccount as well as @metrotrains or
 #       @yarratrams (or both!)
 #
-#   haileysome.following | ~haileysome.following
+#   haileysaccount.following | ~haileysaccount.following
 #
 #     - literally every user on twitter
 #
@@ -158,7 +158,12 @@ module AST
   module LoadableSet
     def load_data(threads)
       threads[key] ||= Thread.start {
-        fetch_data
+        begin
+          fetch_data
+        rescue Twitter::Error::TooManyRequests => e
+          $stderr.puts "Rate limited! limit = #{e.rate_limit.limit}, remaining = #{e.rate_limit.remaining}, reset_at = #{e.rate_limit.reset_at}"
+          raise e
+        end
       }
     end
 
